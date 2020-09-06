@@ -6,19 +6,30 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"strings"
+	"sync"
 )
 
 type RepoCache struct {
-	cache map[string]string
+	cacheLock *sync.RWMutex
+	cache     map[string]string
 }
 
 func (c *RepoCache) Set(key string, value string) {
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
 	c.cache[key] = value
 }
 func (c *RepoCache) Get(key string) string {
+	c.cacheLock.RLock()
+	defer c.cacheLock.RUnlock()
+
 	return c.cache[key]
 }
 func (c *RepoCache) Delete(key string) {
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
 	delete(c.cache, key)
 }
 
@@ -44,7 +55,8 @@ type Repo struct {
 
 func (r *Repo) EnableCaching() RepoInterface {
 	r.cache = &RepoCache{
-		cache: map[string]string{},
+		cacheLock: &sync.RWMutex{},
+		cache:     map[string]string{},
 	}
 	return r
 }
