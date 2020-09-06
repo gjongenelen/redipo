@@ -5,6 +5,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/gommon/log"
 	"os"
+	"time"
 )
 
 type ManagerInterface interface {
@@ -34,10 +35,15 @@ func New() ManagerInterface {
 			DB:       0,
 		}),
 	}
-	if manager.ping() {
-		log.Infof("Connected to Redis at %s", url)
-	} else {
-		log.Fatalf("Could not connect to Redis at %s", url)
+	for i := 0; i < 10; i++ {
+		if manager.ping() {
+			log.Infof("Connected to Redis at %s", url)
+			return manager
+		} else {
+			log.Error("Could not connect to Redis at %s, retrying...", url)
+			time.Sleep(1 * time.Second)
+		}
 	}
-	return manager
+	log.Fatal("Gave up connecting to redis")
+	return nil
 }
