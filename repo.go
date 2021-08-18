@@ -3,10 +3,11 @@ package redipo
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-redis/redis/v8"
-	"github.com/google/uuid"
 	"strings"
 	"sync"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 )
 
 type RepoCache struct {
@@ -147,19 +148,29 @@ func (r *Repo) Get(id uuid.UUID) (interface{}, error) {
 	}
 	return object, nil
 }
+
 func (r *Repo) GetAll() ([]interface{}, error) {
-	keys, err := r.List()
+	ids, err := r.client.Keys(context.Background(), r.name+"_*").Result()
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]interface{}, 0)
-	for _, key := range keys {
-		result, err := r.Get(key)
-		if err != nil {
-			return nil, err
+	if len(ids) == 0 {
+		return []interface{}{}, nil
+	}
+
+	results := []interface{}{}
+	objects, err := r.client.MGet(context.Background(), ids...).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, object := range objects {
+		model := r.factory()
+		err := json.Unmarshal([]byte(object.(string)), model)
+		if err == nil {
+			results = append(results, model)
 		}
-		results = append(results, result)
 	}
 
 	return results, nil

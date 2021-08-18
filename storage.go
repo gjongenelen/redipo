@@ -2,10 +2,11 @@ package redipo
 
 import (
 	"context"
-	"github.com/go-redis/redis/v8"
-	"github.com/labstack/gommon/log"
 	"os"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/labstack/gommon/log"
 )
 
 type ManagerInterface interface {
@@ -40,7 +41,7 @@ func New() ManagerInterface {
 			log.Infof("Connected to Redis at %s", url)
 			return manager
 		} else {
-			log.Error("Could not connect to Redis at %s, retrying...", url)
+			log.Errorf("Could not connect to Redis at %s, retrying...", url)
 			time.Sleep(1 * time.Second)
 		}
 	}
