@@ -4,38 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"sync"
 
+	"github.com/gjongenelen/redipo/cache"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
 
-type RepoCache struct {
-	cacheLock *sync.RWMutex
-	cache     map[string]string
-}
-
-func (c *RepoCache) Set(key string, value string) {
-	c.cacheLock.Lock()
-	defer c.cacheLock.Unlock()
-
-	c.cache[key] = value
-}
-func (c *RepoCache) Get(key string) string {
-	c.cacheLock.RLock()
-	defer c.cacheLock.RUnlock()
-
-	return c.cache[key]
-}
-func (c *RepoCache) Delete(key string) {
-	c.cacheLock.Lock()
-	defer c.cacheLock.Unlock()
-
-	delete(c.cache, key)
-}
-
 type RepoInterface interface {
-	EnableCaching() RepoInterface
+	SetCaching(cacheInstance cache.Cache) RepoInterface
 	SetFactory(func() interface{})
 	List() ([]uuid.UUID, error)
 	Get(id uuid.UUID) (interface{}, error)
@@ -49,18 +25,16 @@ type RepoInterface interface {
 
 type Repo struct {
 	name    string
-	cache   *RepoCache
+	cache   cache.Cache
 	client  *redis.Client
 	factory func() interface{}
 }
 
-func (r *Repo) EnableCaching() RepoInterface {
-	r.cache = &RepoCache{
-		cacheLock: &sync.RWMutex{},
-		cache:     map[string]string{},
-	}
+func (r *Repo) SetCaching(cacheInstance cache.Cache) RepoInterface {
+	r.cache = cacheInstance
 	return r
 }
+
 func (r *Repo) GetIndex(name string) ([]uuid.UUID, error) {
 	result, err := r.client.Get(context.Background(), r.name+"_"+name).Result()
 	if err != nil {
@@ -132,8 +106,8 @@ func (r *Repo) SetFactory(factory func() interface{}) {
 }
 
 func (r *Repo) Get(id uuid.UUID) (interface{}, error) {
-	result := r.cache.Get(r.name + "_" + id.String())
-	if result == "" {
+	result, err := r.cache.Get(r.name + "_" + id.String())
+	if result == "" && err == nil {
 		var err error
 		result, err = r.client.Get(context.Background(), r.name+"_"+id.String()).Result()
 		if err != nil {
@@ -142,7 +116,7 @@ func (r *Repo) Get(id uuid.UUID) (interface{}, error) {
 		r.cache.Set(r.name+"_"+id.String(), result)
 	}
 	object := r.factory()
-	err := json.Unmarshal([]byte(result), object)
+	err = json.Unmarshal([]byte(result), object)
 	if err != nil {
 		return nil, err
 	}
@@ -214,6 +188,6 @@ func NewRepo(name string, client *redis.Client) RepoInterface {
 		name:   name,
 		client: client,
 	}
-	repo.EnableCaching()
+	repo.SetCaching(cache.NewMemoryCache())
 	return repo
 }
