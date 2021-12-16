@@ -142,6 +142,7 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 			unknownIds = append(unknownIds, id)
 		} else {
 			objects = append(objects, obj)
+			r.cache.Set(id, obj)
 		}
 	}
 
@@ -161,6 +162,7 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 
 	return results, nil
 }
+
 func (r *Repo) Delete(id uuid.UUID) error {
 	_, err := r.client.Del(context.Background(), r.name+"_"+id.String()).Result()
 	r.cache.Delete(r.name + "_" + id.String())
