@@ -133,13 +133,25 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 		return []interface{}{}, nil
 	}
 
+	objects := []interface{}{}
+	
+	unknownIds := []string{}
+	for _, id := range ids {
+		obj, err := r.cache.Get(id)
+		if err != nil {
+			unknownIds = append(unknownIds, id)
+		} else {
+			objects = append(objects, obj)
+		}
+	}
+
 	results := []interface{}{}
-	objects, err := r.client.MGet(context.Background(), ids...).Result()
+	newObjects, err := r.client.MGet(context.Background(), unknownIds...).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, object := range objects {
+	for _, object := range append(objects, newObjects...) {
 		model := r.factory()
 		err := json.Unmarshal([]byte(object.(string)), model)
 		if err == nil {

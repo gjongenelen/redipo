@@ -1,6 +1,9 @@
 package cache
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 type MemoryCache struct {
 	cacheLock *sync.RWMutex
@@ -27,7 +30,12 @@ func (c *MemoryCache) Get(key string) (string, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
 
-	return c.cache[key], nil
+	obj, ok := c.cache[key]
+	if !ok {
+		return "", errors.New("not found")
+	}
+
+	return obj, nil
 }
 
 func (c *MemoryCache) Delete(key string) error {
