@@ -134,15 +134,15 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 	}
 
 	objects := []interface{}{}
-	
+
 	unknownIds := []string{}
 	for _, id := range ids {
-		obj, err := r.cache.Get(id)
-		if err != nil {
+		result, _ := r.cache.Get(r.name + "_" + id)
+		if result == "" {
 			unknownIds = append(unknownIds, id)
 		} else {
-			objects = append(objects, obj)
-			r.cache.Set(id, obj)
+			objects = append(objects, result)
+			r.cache.Set(r.name+"_"+id, result)
 		}
 	}
 

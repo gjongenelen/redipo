@@ -23,7 +23,7 @@ func TestReadWrite(t *testing.T) {
 	assert.Nil(t, err)
 
 	result, err = cacher.Get(uuid1.String())
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "", result)
 
 }

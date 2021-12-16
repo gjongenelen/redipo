@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"errors"
 	"sync"
 )
 
@@ -30,12 +29,7 @@ func (c *MemoryCache) Get(key string) (string, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
 
-	obj, ok := c.cache[key]
-	if !ok {
-		return "", errors.New("not found")
-	}
-
-	return obj, nil
+	return c.cache[key], nil
 }
 
 func (c *MemoryCache) Delete(key string) error {
