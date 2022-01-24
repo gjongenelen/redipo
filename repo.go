@@ -21,6 +21,7 @@ type RepoInterface interface {
 	RemoveFromIndex(name string, id uuid.UUID) error
 	Save(id uuid.UUID, value interface{}) error
 	Delete(id uuid.UUID) error
+	CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error)
 }
 
 type Repo struct {
@@ -195,6 +196,44 @@ func (r *Repo) Save(id uuid.UUID, value interface{}) error {
 	}
 	r.cache.Set(r.name+"_"+id.String(), string(jsonVal))
 	return nil
+}
+
+func (r *Repo) CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error) {
+	keys, err := r.List()
+	if err != nil {
+		return nil, err
+	}
+
+	toClean := []uuid.UUID{}
+
+	type IdObj struct {
+		Id uuid.UUID `json:"id"`
+	}
+	for _, key := range keys {
+		obj, err := r.Get(key)
+		if err != nil {
+			return nil, err
+		}
+		pars := &IdObj{}
+		err = json.Unmarshal([]byte(obj.(string)), pars)
+		if err != nil {
+			return nil, err
+		}
+		if pars.Id != key {
+			toClean = append(toClean, key)
+		}
+
+	}
+
+	if !dryRun {
+		for _, id := range toClean {
+			err = r.Delete(id)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return toClean, nil
 }
 
 func NewRepo(name string, client *redis.Client) RepoInterface {
