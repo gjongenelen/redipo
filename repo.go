@@ -210,12 +210,12 @@ func (r *Repo) CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error) {
 		Id uuid.UUID `json:"id"`
 	}
 	for _, key := range keys {
-		obj, err := r.Get(key)
+		result, err := r.client.Get(context.Background(), r.name+"_"+key.String()).Result()
 		if err != nil {
 			return nil, err
 		}
 		pars := &IdObj{}
-		err = json.Unmarshal([]byte(obj.(string)), pars)
+		err = json.Unmarshal([]byte(result), pars)
 		if err != nil {
 			return nil, err
 		}
