@@ -1,10 +1,9 @@
 package redipo
 
 import (
-	"testing"
-
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 type TestStruct struct {
@@ -16,6 +15,24 @@ func clearRepo(repo RepoInterface) {
 	for _, key := range keys {
 		repo.Delete(key)
 	}
+}
+
+func TestDbSelect(t *testing.T) {
+
+	uuid1 := uuid.New()
+
+	manager := New()
+	repo := manager.LoadDbRepo("testing")
+	repo.SetFactory(func() interface{} { return &TestStruct{} })
+	clearRepo(repo)
+
+	err := repo.Save(uuid1, &TestStruct{Name: "test1"})
+	assert.Nil(t, err)
+
+	result, err := repo.Get(uuid1)
+	assert.Nil(t, err)
+	assert.Equal(t, "test1", result.(*TestStruct).Name)
+
 }
 
 func TestReadWrite(t *testing.T) {
@@ -108,4 +125,11 @@ func TestIndexing(t *testing.T) {
 	items, err = repo.GetIndex("test_index")
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(items))
+
+	err = repo.DeleteIndex("test_index")
+	assert.Nil(t, err)
+
+	items, err = repo.GetIndex("test_index")
+	assert.NotNil(t, err)
+
 }

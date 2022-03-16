@@ -19,6 +19,7 @@ type RepoInterface interface {
 	GetIndex(name string) ([]uuid.UUID, error)
 	AddToIndex(name string, id uuid.UUID) error
 	RemoveFromIndex(name string, id uuid.UUID) error
+	DeleteIndex(name string) error
 	Save(id uuid.UUID, value interface{}) error
 	Delete(id uuid.UUID) error
 	CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error)

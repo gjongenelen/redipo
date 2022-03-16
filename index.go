@@ -89,3 +89,12 @@ func (r *Repo) RemoveFromIndex(name string, id uuid.UUID) error {
 	_, err = r.client.Set(context.Background(), r.name+"_"+name, jsonVal, 0).Result()
 	return err
 }
+
+func (r *Repo) DeleteIndex(name string) error {
+	_, err := r.client.Del(context.Background(), r.name+"_"+name).Result()
+	if err != nil && err != redis.Nil {
+		return err
+	}
+
+	return nil
+}
