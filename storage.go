@@ -61,7 +61,7 @@ func (m *Manager) getDbNumber(name string) int {
 	}
 	databases = append(databases, fmt.Sprintf("%s:%d", name, highest+1))
 
-	_, err = m.redis.Set(context.Background(), "databases", strings.Join(databases, ","), 0).Result()
+	_, _ = m.redis.Set(context.Background(), "databases", strings.Join(databases, ","), 0).Result()
 
 	return highest + 1
 }
