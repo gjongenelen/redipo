@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/gjongenelen/redipo/cache"
 	"github.com/go-redis/redis/v8"
@@ -21,6 +22,7 @@ type RepoInterface interface {
 	RemoveFromIndex(name string, id uuid.UUID) error
 	DeleteIndex(name string) error
 	Save(id uuid.UUID, value interface{}) error
+	SaveWithExpiration(id uuid.UUID, value interface{}, expiration time.Duration) error
 	Delete(id uuid.UUID) error
 	CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error)
 }
@@ -121,11 +123,15 @@ func (r *Repo) List() ([]uuid.UUID, error) {
 }
 
 func (r *Repo) Save(id uuid.UUID, value interface{}) error {
+	return r.SaveWithExpiration(id, value, 0)
+}
+
+func (r *Repo) SaveWithExpiration(id uuid.UUID, value interface{}, expiration time.Duration) error {
 	jsonVal, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	_, err = r.client.Set(context.Background(), r.name+"_"+id.String(), jsonVal, 0).Result()
+	_, err = r.client.Set(context.Background(), r.name+"_"+id.String(), jsonVal, expiration).Result()
 	if err != nil {
 		return err
 	}
