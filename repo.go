@@ -11,23 +11,28 @@ import (
 	"github.com/google/uuid"
 )
 
-type RepoInterface interface {
-	SetCaching(cacheInstance cache.Cache) RepoInterface
-	SetFactory(func() interface{})
-	List() ([]uuid.UUID, error)
-	Get(id uuid.UUID) (interface{}, error)
-	GetAll() ([]interface{}, error)
-	GetIndex(name string) ([]uuid.UUID, error)
-	AddToIndex(name string, id uuid.UUID) error
-	RemoveFromIndex(name string, id uuid.UUID) error
-	DeleteIndex(name string) error
-	Save(id uuid.UUID, value interface{}) error
-	SaveWithExpiration(id uuid.UUID, value interface{}, expiration time.Duration) error
-	Delete(id uuid.UUID) error
-	CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error)
+type Stringer[T any] interface {
+	String() string
+	Parse(s string) (Stringer, error)
 }
 
-type Repo struct {
+type RepoInterface[I Stringer, T any] interface {
+	SetCaching(cacheInstance cache.Cache) RepoInterface
+	SetFactory(func() interface{})
+	List() ([]I, error)
+	Get(id I) (T, error)
+	GetAll() ([]T, error)
+	GetIndex(name string) ([]I, error)
+	AddToIndex(name string, id I) error
+	RemoveFromIndex(name string, id I) error
+	DeleteIndex(name string) error
+	Save(id I, value T) error
+	SaveWithExpiration(id I, value T, expiration time.Duration) error
+	Delete(id I) error
+	CleanupInvalidKeys(dryRun bool) ([]I, error)
+}
+
+type Repo[I Stringer, T any] struct {
 	name    string
 	cache   cache.Cache
 	client  *redis.Client
@@ -45,7 +50,7 @@ func (r *Repo) SetFactory(factory func() interface{}) {
 
 func (r *Repo) Get(id uuid.UUID) (interface{}, error) {
 	result, err := r.cache.Get(r.name + "_" + id.String())
-	if result == "" && err == nil {
+	if result == nil && err == nil {
 		var err error
 		result, err = r.client.Get(context.Background(), r.name+"_"+id.String()).Result()
 		if err != nil {
@@ -61,22 +66,22 @@ func (r *Repo) Get(id uuid.UUID) (interface{}, error) {
 	return object, nil
 }
 
-func (r *Repo) GetAll() ([]interface{}, error) {
+func (r *Repo[I, T]) GetAll() ([]T, error) {
 	ids, err := r.client.Keys(context.Background(), r.name+"_*").Result()
 	if err != nil {
 		return nil, err
 	}
 
 	if len(ids) == 0 {
-		return []interface{}{}, nil
+		return []T{}, nil
 	}
 
-	objects := []interface{}{}
+	objects := []T{}
 
 	unknownIds := []string{}
 	for _, id := range ids {
 		result, _ := r.cache.Get(r.name + "_" + id)
-		if result == "" {
+		if result == nil {
 			unknownIds = append(unknownIds, id)
 		} else {
 			objects = append(objects, result)
@@ -84,7 +89,7 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 		}
 	}
 
-	results := []interface{}{}
+	results := []T{}
 	newObjects, err := r.client.MGet(context.Background(), unknownIds...).Result()
 	if err != nil {
 		return nil, err
@@ -101,17 +106,17 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 	return results, nil
 }
 
-func (r *Repo) Delete(id uuid.UUID) error {
+func (r *Repo[I, T]) Delete(id I) error {
 	_, err := r.client.Del(context.Background(), r.name+"_"+id.String()).Result()
 	r.cache.Delete(r.name + "_" + id.String())
 	return err
 }
-func (r *Repo) List() ([]uuid.UUID, error) {
+func (r *Repo[I]) List() ([]I, error) {
 	result, err := r.client.Keys(context.Background(), r.name+"_*").Result()
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]uuid.UUID, 0)
+	ids := make([]I, 0)
 	for _, key := range result {
 		s := strings.Split(key, "_")
 		id, err := uuid.Parse(s[len(s)-1])
@@ -122,11 +127,11 @@ func (r *Repo) List() ([]uuid.UUID, error) {
 	return ids, nil
 }
 
-func (r *Repo) Save(id uuid.UUID, value interface{}) error {
+func (r *Repo[I, T]) Save(id I, value T) error {
 	return r.SaveWithExpiration(id, value, 0)
 }
 
-func (r *Repo) SaveWithExpiration(id uuid.UUID, value interface{}, expiration time.Duration) error {
+func (r *Repo[I, T]) SaveWithExpiration(id I, value T, expiration time.Duration) error {
 	jsonVal, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -139,7 +144,7 @@ func (r *Repo) SaveWithExpiration(id uuid.UUID, value interface{}, expiration ti
 	return nil
 }
 
-func (r *Repo) CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error) {
+func (r *Repo[I]) CleanupInvalidKeys(dryRun bool) ([]I, error) {
 	keys, err := r.List()
 	if err != nil {
 		return nil, err
@@ -148,7 +153,7 @@ func (r *Repo) CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error) {
 	toClean := []uuid.UUID{}
 
 	type IdObj struct {
-		Id uuid.UUID `json:"id"`
+		Id I `json:"id"`
 	}
 	for _, key := range keys {
 		result, err := r.client.Get(context.Background(), r.name+"_"+key.String()).Result()
@@ -177,10 +182,10 @@ func (r *Repo) CleanupInvalidKeys(dryRun bool) ([]uuid.UUID, error) {
 	return toClean, nil
 }
 
-func NewRepo(name string, client *redis.Client) RepoInterface {
-	repo := &Repo{
+func NewRepo[I Stringer, T any](name string, manager ManagerInterface) RepoInterface {
+	repo := &Repo[I, T]{
 		name:   name,
-		client: client,
+		client: manager.getRedis(),
 	}
 	repo.SetCaching(cache.NewMemoryCache())
 	return repo

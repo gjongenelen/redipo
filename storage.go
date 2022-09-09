@@ -14,6 +14,7 @@ import (
 
 type ManagerInterface interface {
 	ping() bool
+	getRedis() *redis.Client
 	LoadRepo(name string) RepoInterface
 	LoadDbRepo(name string) RepoInterface
 }
@@ -28,13 +29,17 @@ func (m *Manager) ping() bool {
 }
 
 func (m *Manager) LoadRepo(name string) RepoInterface {
-	return NewRepo(name, m.redis)
+	return NewRepo(name, m)
+}
+
+func (m *Manager) getRedis() *redis.Client {
+	return m.redis
 }
 
 func (m *Manager) LoadDbRepo(name string) RepoInterface {
 	dbId := m.getDbNumber(name)
 
-	return NewRepo(name, newRedis(dbId))
+	return NewRepo(name, &Manager{newRedis(dbId)})
 }
 
 func (m *Manager) getDbNumber(name string) int {

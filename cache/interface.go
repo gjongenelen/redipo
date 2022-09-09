@@ -2,9 +2,9 @@ package cache
 
 import "time"
 
-type Cache interface {
-	Set(key string, value string) error
-	Get(key string) (string, error)
+type Cache[T any] interface {
+	Set(key string, value T) error
+	Get(key string) (T, error)
 	Delete(key string) error
 	SetExpiration(expiration time.Duration) Cache
 }

@@ -10,6 +10,18 @@ type TestStruct struct {
 	Name string `json:"name"`
 }
 
+type CustomUUID struct {
+	uuid.UUID
+}
+
+func (c *CustomUUID) Parse(s string) (Stringer, error) {
+	id, err := uuid.Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	return CustomUUID{id}, nil
+}
+
 func clearRepo(repo RepoInterface) {
 	keys, _ := repo.List()
 	for _, key := range keys {
@@ -22,8 +34,7 @@ func TestDbSelect(t *testing.T) {
 	uuid1 := uuid.New()
 
 	manager := New()
-	repo := manager.LoadDbRepo("testing")
-	repo.SetFactory(func() interface{} { return &TestStruct{} })
+	repo := NewRepo[uuid.UUID, TestStruct]("testing", manager)
 	clearRepo(repo)
 
 	err := repo.Save(uuid1, &TestStruct{Name: "test1"})
