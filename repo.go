@@ -80,7 +80,6 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 			unknownIds = append(unknownIds, id)
 		} else {
 			objects = append(objects, result)
-			r.cache.Set(r.name+"_"+id, result)
 		}
 	}
 
@@ -88,6 +87,10 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 	newObjects, err := r.client.MGet(context.Background(), unknownIds...).Result()
 	if err != nil {
 		return nil, err
+	}
+
+	for i, newObject := range newObjects {
+		r.cache.Set(r.name+"_"+unknownIds[i], newObject.(string))
 	}
 
 	for _, object := range append(objects, newObjects...) {
