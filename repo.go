@@ -83,16 +83,19 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 		}
 	}
 
+	newObjects := []interface{}{}
+	if len(unknownIds) > 0 {
+		newObjects, err = r.client.MGet(context.Background(), unknownIds...).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		for i, newObject := range newObjects {
+			r.cache.Set(r.name+"_"+unknownIds[i], newObject.(string))
+		}
+	}
+
 	results := []interface{}{}
-	newObjects, err := r.client.MGet(context.Background(), unknownIds...).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	for i, newObject := range newObjects {
-		r.cache.Set(r.name+"_"+unknownIds[i], newObject.(string))
-	}
-
 	for _, object := range append(objects, newObjects...) {
 		model := r.factory()
 		err := json.Unmarshal([]byte(object.(string)), model)
