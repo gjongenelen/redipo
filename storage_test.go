@@ -75,6 +75,20 @@ func TestListReadWrite(t *testing.T) {
 	assert.Equal(t, "test", results[0].(*TestStruct).Name[0:4])
 	assert.Equal(t, "test", results[1].(*TestStruct).Name[0:4])
 
+	repo2 := manager.LoadRepo("testing")
+	repo2.SetFactory(func() interface{} { return &TestStruct{} })
+
+	err = repo2.Save(uuid1, &TestStruct{Name: "dsfdas"})
+	results, err = repo2.GetAll()
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(results))
+
+	err = repo2.Save(uuid1, &TestStruct{Name: "test"})
+	results, err = repo2.GetAll()
+
+	assert.Equal(t, "test", results[0].(*TestStruct).Name[0:4])
+	assert.Equal(t, "test", results[1].(*TestStruct).Name[0:4])
+
 }
 
 func TestListingDeleting(t *testing.T) {

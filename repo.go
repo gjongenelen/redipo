@@ -75,7 +75,7 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 
 	unknownIds := []string{}
 	for _, id := range ids {
-		result, _ := r.cache.Get(r.name + "_" + id)
+		result, _ := r.cache.Get(id)
 		if result == "" {
 			unknownIds = append(unknownIds, id)
 		} else {
@@ -91,7 +91,7 @@ func (r *Repo) GetAll() ([]interface{}, error) {
 		}
 
 		for i, newObject := range newObjects {
-			r.cache.Set(r.name+"_"+unknownIds[i], newObject.(string))
+			r.cache.Set(unknownIds[i], newObject.(string))
 		}
 	}
 
